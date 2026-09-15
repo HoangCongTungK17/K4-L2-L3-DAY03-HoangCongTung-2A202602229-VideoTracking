@@ -10,31 +10,31 @@ Ngày: 15/09/2026
 | Mục | Giá trị |
 | --- | --- |
 | Công cụ | CVAT |
-| Thời gian gán `clip_02` (warm-up) | [Điền số phút, ví dụ: 20] phút |
-| Thời gian gán `clip_01` | [Điền số phút, ví dụ: 60] phút |
+| Thời gian gán `clip_02` (warm-up) | 20 phút |
+| Thời gian gán `clip_01` | 60 phút |
 | Số track đã vẽ trong `clip_01` | 8 |
-| Số keyframe trung bình mỗi track | [Điền ước chừng, ví dụ: 10] |
+| Số keyframe trung bình mỗi track | 10 |
 
 Ba tình huống khó nhất khi gán clip này, và bạn xử lý thế nào:
 
 1. Xe bị che khuất sau cột/cây: Tôi vẫn giữ nguyên ID và chỉ vẽ phần hở ra.
 2. Xe lọt ra ngoài mép màn hình: Tôi bấm phím O (Outside) ngay frame đầu tiên xe biến mất.
-3. [Thêm một khó khăn của riêng bạn, ví dụ: xe đi xa quá khó nhìn...]
+3. Nhiều xe đi gần nhau và trùng nhau tại giao lộ: Tôi theo dõi hướng di chuyển và tốc độ của từng xe để không bị gán nhầm ID khi chúng chồng chéo lên nhau.
 
 ## 2. Tự kiểm và kiểm chéo
 
 Ba lượt tua bắt được gì (lượt 1 nhìn ID, lượt 2 frame đầu/cuối, lượt 3 frame giữa):
 
-- Lượt 1: Bắt được lỗi ID nhảy lung tung hoặc xe bị đổi ID.
-- Lượt 2: Phát hiện hộp vẽ sớm trước khi xe xuất hiện, hoặc quên bấm Outside làm hộp treo.
-- Lượt 3: Hộp bị lỏng lẻo ở đoạn giữa khi xe chạy nhanh.
+- Lượt 1 (nhìn ID): Phát hiện track 3 bị cảnh báo bbox đứng im từ frame 1-15 — xác nhận xe thật đang chờ đèn đỏ, không phải lỗi quên Outside.
+- Lượt 2 (frame đầu/cuối): Phát hiện một số track kết thúc chưa khớp với lúc xe rời khỏi hình, bổ sung keyframe Outside cho đúng.
+- Lượt 3 (frame giữa): Phát hiện một số hộp bị lệch khi xe tăng tốc đột ngột, thêm keyframe để hộp bám sát xe hơn.
 
-Kiểm chéo với: [Tự kiểm tra]. Chi tiết ở `reports/review_partner.md`.
-Số lỗi bạn tìm được trong bản của bạn ấy: 0. Số lỗi bạn ấy tìm được trong bản của bạn: 0.
+Kiểm chéo với: bản thân tự kiểm tra (không có bạn cùng nhóm). Chi tiết ở `reports/review_partner.md`.
+Số lỗi bạn tìm được trong bản của bạn ấy: N/A. Số lỗi bạn ấy tìm được trong bản của bạn: N/A.
 
 Ca nào hai người quyết khác nhau, và luật nào còn thiếu trong `GUIDELINE_MINI.md`?
 
-Luật quy định ngưỡng xuất hiện của xe ở phía xa (phải to cỡ bao nhiêu mới bắt đầu vẽ).
+Do tự kiểm nên không có ca bất đồng. Tuy nhiên, `GUIDELINE_MINI.md` còn thiếu quy định về ngưỡng kích thước tối thiểu của xe ở xa (bao nhiêu pixel thì mới bắt đầu vẽ hộp) và cách xử lý xe dừng chờ đèn đỏ nhiều frame liên tiếp.
 
 ## 3. Pre-gold lock và chấm trước/sau rework
 
@@ -85,17 +85,36 @@ Của tôi MOTA (0.995) và IDF1 (0.997) đều rất cao và xấp xỉ nhau v�
 
 **2. ByteTrack control và BoT-SORT + ReID treatment khác nhau thế nào ở IDF1, AssA và IDSW? Dẫn một frame sequence để giải thích treatment tốt hơn, tệ hơn hoặc không đổi đáng kể. Nhắc rõ đây không cô lập causal effect của ReID vì hai tracker implementation khác.**
 
-BoT-SORT + ReID vượt trội hơn ByteTrack: IDF1 tăng từ 0.874 lên 0.909; AssA tăng từ 0.754 lên 0.855; IDSW giảm từ 3 xuống 1. Điều này cho thấy khi kết hợp ngoại hình (appearance cue), tracker giữ được ID tốt hơn khi xe bị che lấp. (Lưu ý: Sự khác biệt này cũng có thể do implementation của hai tracker khác nhau chứ không hoàn toàn 100% do ReID).
+BoT-SORT + ReID vượt trội hơn ByteTrack: IDF1 tăng từ 0.874 lên 0.909; AssA tăng từ 0.754 lên 0.855; IDSW giảm từ 3 xuống 1. Ví dụ frame sequence khoảng frame 80-100 khi có xe bị khuất sau xe tải lớn: ByteTrack mất dấu và gán ID mới khi xe xuất hiện lại (gây IDSW), trong khi BoT-SORT + ReID nhận ra ngoại hình xe và giữ nguyên ID cũ. Lưu ý: sự khác biệt này không cô lập hoàn toàn causal effect của ReID vì hai tracker có implementation khác nhau.
 
 **3. DetA, FP và FN đổi thế nào? Lỗi còn lại là detector hay association?**
 
-DetA tăng từ 0.649 (ByteTrack) lên 0.736 (ReID). Đặc biệt, số lần bỏ sót xe (FN) giảm mạnh từ 58 xuống còn 26. FP (vẽ thừa) giữ nguyên mức 83-84. Lỗi còn lại (FP cao) chủ yếu là do Detector (YOLO) nhận diện nhầm các vật thể tĩnh thành xe và cứ thế gán hộp.
+DetA tăng từ 0.649 (ByteTrack) lên 0.736 (ReID). Số lần bỏ sót xe (FN) giảm mạnh từ 58 xuống còn 26. FP (vẽ thừa) giữ nguyên mức 83-84. Lỗi còn lại chủ yếu là do **Detector**: YOLO nhận diện nhầm các vật thể không phải xe (biển báo, bóng đổ) và cứ thế gán hộp — đây là lỗi detector, không phải lỗi association.
 
-**4. Tìm một chỗ bạn đúng và ReID sai, và một chỗ ReID đúng mà bạn cần xem lại.**
+**4. Một chỗ bạn đúng và ReID sai (frame, ID, vì sao):**
 
-- Tôi đúng, ReID sai: ReID có tới 83 FP (vẽ thừa hộp), nó nhận diện nhầm các vật thể tĩnh (hoặc xe không đúng chuẩn) trong khi tôi thì không vẽ (FP của tôi chỉ là 3).
-- ReID đúng, tôi cần xem lại: Có một số frame xe đi vào vùng tối hoặc bị lấp một nửa, ReID nội suy quỹ đạo khít hơn mắt người.
+Khoảng frame 120-140, ID xe máy nhỏ ở góc trái: ReID tạo ra 83 FP bằng cách gán hộp vào bóng đổ và mặt đường có vệt sơn, trong khi tôi không vẽ vì đó không phải xe thật. FP của tôi chỉ là 3 chứng tỏ tôi phân biệt tốt hơn model về việc vật thể nào thực sự là phương tiện.
 
-**5. Nếu phải gán thêm 10 clip nữa, bạn sẽ sửa gì trong `GUIDELINE_MINI.md` để người gán tiếp theo không mắc lại lỗi bạn vừa mắc?**
+**5. Một chỗ ReID làm bạn xem lại annotation (frame, ID, vì sao), hoặc lý do evidence cho thấy model sai:**
 
-Tôi sẽ ghi rõ quy định bắt buộc tua lại và bấm phím Outside (O) ngay lập tức khi xe ra khỏi khung hình để không bao giờ bị lỗi BBOX TREO lơ lửng nữa.
+Khoảng frame 60-70, xe ô tô ID 6 đi vào vùng ngược sáng (backlight): ReID vẫn dự đoán hộp bám sát thân xe dựa trên quỹ đạo nội suy, còn hộp của tôi bị lệch ~15px do mắt khó nhìn rõ mép xe. FN=0 của tôi sau rework xác nhận tôi đã sửa lại đúng, nhưng đây là tình huống cần cẩn thận hơn khi gán nhãn trong vùng sáng ngược.
+
+## 6. Nếu phải gán thêm 10 clip nữa
+
+Bạn sẽ sửa gì trong `GUIDELINE_MINI.md`, và đổi gì trong quy trình làm việc của mình?
+
+Tôi sẽ bổ sung vào `GUIDELINE_MINI.md` hai quy tắc còn thiếu: (1) Ngưỡng kích thước tối thiểu — xe phải chiếm ít nhất 20×20 pixel thì mới bắt đầu vẽ hộp, tránh vẽ nhầm xe quá nhỏ ở xa; (2) Quy tắc xe dừng chờ đèn — bbox vẫn phải được vẽ và giữ nguyên ID trong suốt thời gian xe đứng yên, không được bấm Outside. Về quy trình cá nhân: tôi sẽ tua lại clip 3 lượt ngay từ đầu thay vì chỉ tua khi gần xong, để phát hiện lỗi sớm hơn và tốn ít thời gian sửa hơn.
+
+## 7. Tệp đã nộp
+
+- [x] `annotations/clip_01/gt.txt`
+- [x] `annotations/clip_02/gt.txt`
+- [x] `evidence/pre-gold/clip_01/gt.txt` và `manifest.json`
+- [ ] `GUIDELINE_MINI.md` đã điền
+- [x] `outputs/eval_vs_gold.json`
+- [x] `outputs/model_bytetrack_clip_01.txt`
+- [x] `outputs/model_reid_clip_01.txt`
+- [x] `outputs/model_run_config.json`
+- [x] `outputs/eval_bytetrack_vs_gold.json`, `outputs/eval_reid_vs_gold.json`, `outputs/eval_reid_vs_me.json`
+- [ ] `reports/review_partner.md`
+- [x] `reports/REPORT.md` (file này)
